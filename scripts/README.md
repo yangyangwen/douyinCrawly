@@ -51,7 +51,7 @@ uv run python main.py
   - 安装项目依赖和 PyInstaller
 
 - **aria2.ps1** - 下载 aria2 工具
-  - 从 GitHub 自动下载最新版
+  - 自动下载最新版
   - 解压到 `aria2/` 目录
   - 验证安装
 

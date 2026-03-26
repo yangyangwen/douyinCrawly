@@ -1,10 +1,6 @@
-![douyin](https://socialify.git.ci/erma0/douyin/image?description=1&font=Source%20Code%20Pro&forks=1&issues=1&language=1&owner=1&pattern=Circuit%20Board&stargazers=1&theme=Auto)
-
 # ✨DouyinCrawler
 
 **[English](./README_EN.md) | [Tiếng Việt](./README_VI.md) | 简体中文**
-
-> ❤️[开源不易，欢迎star⭐](#star-history)
 
 ## 📢声明
 
@@ -17,10 +13,6 @@
 > 使用本仓库的内容即表示您同意本免责声明的所有条款和条件。如果你不接受以上的免责声明，请立即停止使用本项目。
 
 ---
-
-## 🏠项目地址
-
-> [https://github.com/erma0/douyin](https://github.com/erma0/douyin)
 
 ## 🍬功能特性
 
@@ -43,6 +35,11 @@
 - 🌐 **RESTful API**：v2.0 提供完整的 HTTP API
 - 🔧 **跨平台支持**：Windows / macOS / Linux
 
+### 🧭 项目定位
+- 这个项目不是只做“抖音搜索”，搜索只是其中一种采集入口。
+- 当前采集能力覆盖：单作品、用户主页、喜欢、收藏、话题、合集、音乐、关键词搜索、关注列表、粉丝列表。
+- 对外调用既支持异步任务模式（`/api/task/*` + `/api/events`），也支持同步关键词搜索接口（`POST /api/search`）。
+
 ## 📸 界面展示
 
 ![软件界面](./docs/images/main.png)
@@ -55,7 +52,7 @@
 
 ### Windows 用户
 
-从 [Releases](https://github.com/erma0/douyin/releases) 下载，解压后运行 `DouyinCrawler.exe`
+下载发布包后，解压并运行 `DouyinCrawler.exe`
 
 ### Web 服务（Docker / 全平台）
 
@@ -71,6 +68,21 @@ python -m backend.server
 
 浏览器访问 `http://localhost:8000`
 
+如果你准备长期部署或对外暴露接口，建议同时准备 `.env`：
+
+```env
+DOUYIN_COOKIE=你的抖音 Cookie
+DOUYIN_USER_AGENT=与 Cookie 对应的 User-Agent
+```
+
+仓库已提供示例文件：[.env.example](./.env.example)
+
+> 💡 Cookie 维护说明
+> - GUI / Web 服务都可以通过 `POST /api/settings` 在线更新 `cookie` 和 `userAgent`，新任务会直接读取最新配置，不需要重启。
+> - GUI 模式还支持“登录获取 Cookie”。
+> - 只有你手动编辑 `config/settings.json` 文件时，运行中的进程不会自动热加载，这种场景才需要重启。
+> - Docker Compose 已默认挂载 `./config` 和 `./download`，配置和下载文件不会因为容器重建而丢失。
+
 ### 命令行（cli模式）
 
 ```bash
@@ -78,6 +90,12 @@ python -m backend.cli -u https://www.douyin.com/user/xxx -l 20
 ```
 
 📖 详细使用说明请查看 [USAGE.md](USAGE.md)
+
+📡 HTTP API 说明请查看 [docs/API.md](./docs/API.md)
+
+🐳 Docker 部署说明请查看 [docs/DEPLOY.md](./docs/DEPLOY.md)
+
+📝 后续优化与部署代办请查看 [docs/TODO.md](./docs/TODO.md)
 
 ## 🔨构建和打包
 
@@ -104,6 +122,3 @@ scripts/
 - **下载**: Aria2
 - **打包**: PyInstaller / Nuitka
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=erma0/douyin&type=Date)](https://star-history.com/#erma0/douyin&Date)

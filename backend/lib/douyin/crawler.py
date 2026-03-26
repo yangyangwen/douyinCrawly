@@ -64,6 +64,7 @@ class Douyin:
         self.has_more = True
         self.results_old = []
         self.results = []
+        self.raw_results = []
         self.lock = Lock()
 
         # 初始化请求客户端
@@ -149,6 +150,7 @@ class Douyin:
 
         # 解析数据
         with self.lock:
+            self.raw_results.append(aweme_detail)
             new_items, self.has_more = DataParser.parse_awemes(
                 [aweme_detail],
                 self.results,
@@ -198,6 +200,7 @@ class Douyin:
             # 解析数据
             if items_list:
                 with self.lock:
+                    self.raw_results.extend(items_list)
                     if self.type in [
                         "post",
                         "favorite",

@@ -14,8 +14,18 @@ FastAPI Server - 后端 HTTP API 服务
     DOUYIN_HOST          监听地址
     DOUYIN_DEV           开发模式
     DOUYIN_LOG_LEVEL     日志级别
+    DOUYIN_COOKIE        启动时覆盖 cookie
+    DOUYIN_USER_AGENT    启动时覆盖 userAgent
+    DOUYIN_DOWNLOAD_PATH 启动时覆盖下载目录
+    DOUYIN_MAX_RETRIES   启动时覆盖重试次数
+    DOUYIN_MAX_CONCURRENCY 启动时覆盖最大并发
+    DOUYIN_ENABLE_INCREMENTAL_FETCH 启动时覆盖增量采集开关
+    DOUYIN_ARIA2_HOST    启动时覆盖 Aria2 Host
+    DOUYIN_ARIA2_PORT    启动时覆盖 Aria2 Port
+    DOUYIN_ARIA2_SECRET  启动时覆盖 Aria2 Secret
 """
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from typing import Any, Dict
@@ -29,10 +39,12 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from pydantic import BaseModel
 
+from .api_errors import register_exception_handlers
 from .constants import RESOURCE_ROOT, SERVER_DEFAULTS
 from .routers import (
     aria2_router,
     file_router,
+    search_router,
     settings_router,
     system_router,
     task_router,
@@ -96,6 +108,7 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan,
 )
+register_exception_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -106,6 +119,7 @@ app.add_middleware(
 )
 
 app.include_router(task_router)
+app.include_router(search_router)
 app.include_router(settings_router)
 app.include_router(aria2_router)
 app.include_router(file_router)
@@ -172,12 +186,48 @@ def run_server(
     dev: bool = SERVER_DEFAULTS["DEV"],
 ):
     """启动服务器（供外部调用，如 main.py）"""
-    uvicorn.run(
-        app,
+    _run_uvicorn(
+        app_target=app if not dev else "backend.server:app",
         host=host,
         port=port,
+        reload=dev,
         log_level="info" if dev else "warning",
     )
+
+
+def _run_uvicorn(
+    app_target: Any,
+    host: str,
+    port: int,
+    reload: bool,
+    log_level: str,
+) -> None:
+    """
+    启动 uvicorn。
+
+    非 reload 模式下直接使用 asyncio.Runner 驱动 server.serve()，
+    兼容 PyCharm debugger 对 asyncio.run 的补丁。
+    """
+    if reload:
+        uvicorn.run(
+            app_target,
+            host=host,
+            port=port,
+            reload=True,
+            log_level=log_level,
+        )
+        return
+
+    config = uvicorn.Config(
+        app_target,
+        host=host,
+        port=port,
+        log_level=log_level,
+    )
+    server = uvicorn.Server(config)
+
+    with asyncio.Runner(loop_factory=config.get_loop_factory()) as runner:
+        runner.run(server.serve())
 
 
 @click.command()
@@ -224,8 +274,12 @@ def main(host: str, port: int, dev: bool, log_level: str):
     logger.info(f"  日志级别: {log_level}")
     logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    uvicorn.run(
-        "backend.server:app",
+    # dev 模式下需要导入字符串才能支持 reload；常规模式直接使用当前 app，
+    # 避免在 IDE 中以模块方式启动时再次导入 backend.server。
+    app_target = "backend.server:app" if dev else app
+
+    _run_uvicorn(
+        app_target=app_target,
         host=host,
         port=port,
         reload=dev,

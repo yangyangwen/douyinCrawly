@@ -16,6 +16,16 @@ from loguru import logger
 from .constants import CONFIG_DIR, DEFAULT_SETTINGS, SETTINGS_FILE
 
 
+def _parse_bool_env(value: str) -> bool:
+    """解析布尔类型环境变量。"""
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"不支持的布尔值: {value}")
+
+
 class SettingsManager:
     """
     配置管理器
@@ -46,6 +56,20 @@ class SettingsManager:
             "必须是1-65535的整数",
         ),
         "aria2Secret": (lambda x: isinstance(x, str), "必须是字符串"),
+    }
+    ENV_MAPPINGS: Dict[str, Tuple[str, Callable[[str], Any]]] = {
+        "DOUYIN_COOKIE": ("cookie", lambda x: x),
+        "DOUYIN_USER_AGENT": ("userAgent", lambda x: x),
+        "DOUYIN_DOWNLOAD_PATH": ("downloadPath", lambda x: x),
+        "DOUYIN_MAX_RETRIES": ("maxRetries", int),
+        "DOUYIN_MAX_CONCURRENCY": ("maxConcurrency", int),
+        "DOUYIN_ENABLE_INCREMENTAL_FETCH": (
+            "enableIncrementalFetch",
+            _parse_bool_env,
+        ),
+        "DOUYIN_ARIA2_HOST": ("aria2Host", lambda x: x),
+        "DOUYIN_ARIA2_PORT": ("aria2Port", int),
+        "DOUYIN_ARIA2_SECRET": ("aria2Secret", lambda x: x),
     }
 
     def __init__(self, auto_load: bool = True) -> None:
@@ -100,6 +124,7 @@ class SettingsManager:
             self._settings = DEFAULT_SETTINGS.copy()
             self._save_file()
             logger.info("✓ 默认配置已创建")
+            self._apply_env_overrides()
             return self._settings
 
         try:
@@ -111,14 +136,17 @@ class SettingsManager:
             self._backup_file()
             self._settings = DEFAULT_SETTINGS.copy()
             self._save_file()
+            self._apply_env_overrides()
             return self._settings
         except Exception as e:
             logger.error(f"✗ 加载配置失败: {e}")
             self._settings = DEFAULT_SETTINGS.copy()
+            self._apply_env_overrides()
             return self._settings
 
         # 验证修复 + 补充缺失
         self._repair_and_complete()
+        self._apply_env_overrides()
 
         return self._settings
 
@@ -176,6 +204,38 @@ class SettingsManager:
 
         if need_save:
             self._save_file()
+
+    def _apply_env_overrides(self) -> None:
+        """应用环境变量覆盖，优先级高于配置文件。"""
+        overrides: Dict[str, Any] = {}
+        applied_envs: List[str] = []
+
+        for env_name, (key, parser) in self.ENV_MAPPINGS.items():
+            if env_name not in os.environ:
+                continue
+
+            raw_value = os.environ[env_name]
+            try:
+                value = parser(raw_value)
+            except ValueError as e:
+                logger.warning(f"环境变量 {env_name} 无效，已忽略: {e}")
+                continue
+
+            is_valid, errors = self._validate({key: value})
+            if not is_valid:
+                logger.warning(
+                    f"环境变量 {env_name} 未通过配置校验，已忽略: {'; '.join(errors)}"
+                )
+                continue
+
+            overrides[key] = value
+            applied_envs.append(env_name)
+
+        if overrides:
+            self._settings.update(overrides)
+            logger.info(
+                f"已应用环境变量覆盖: {', '.join(applied_envs)}"
+            )
 
     def _save_file(self) -> None:
         """保存配置到文件"""

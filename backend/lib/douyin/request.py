@@ -2,9 +2,7 @@
 """
 @File    :   request.py
 @Time    :   2024年07月15日
-@Author  :   erma0
 @Version :   1.1
-@Link    :   https://github.com/ShilongLee/Crawler
 @Desc    :   抖音sign
 """
 import os

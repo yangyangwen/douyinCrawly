@@ -13,7 +13,20 @@ import { AppSettings, TaskType, DouyinWork } from '../types';
 // 配置
 // ============================================================================
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+function resolveApiBaseUrl(): string {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined' && window.location.origin && window.location.protocol !== 'file:') {
+    return window.location.origin.replace(/\/$/, '');
+  }
+
+  return 'http://127.0.0.1:8000';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 // ============================================================================
 // 类型定义
@@ -23,7 +36,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000
 export class APIError extends Error {
   constructor(
     public statusCode: number,
-    public detail: string
+    public detail: string,
+    public code?: string,
+    public details?: unknown,
   ) {
     super(detail);
     this.name = 'APIError';
@@ -77,6 +92,43 @@ export interface Aria2Config {
 // 核心请求函数
 // ============================================================================
 
+function parseAPIError(
+  statusCode: number,
+  fallbackMessage: string,
+  errorData: unknown,
+): APIError {
+  if (errorData && typeof errorData === 'object') {
+    const data = errorData as {
+      error?: {
+        code?: string;
+        message?: string;
+        details?: unknown;
+      };
+      detail?: string | { message?: string };
+    };
+
+    if (data.error) {
+      return new APIError(
+        statusCode,
+        data.error.message || fallbackMessage,
+        data.error.code,
+        data.error.details,
+      );
+    }
+
+    if (typeof data.detail === 'string') {
+      return new APIError(statusCode, data.detail);
+    }
+
+    if (data.detail && typeof data.detail === 'object' && 'message' in data.detail) {
+      const detail = data.detail as { message?: string };
+      return new APIError(statusCode, detail.message || fallbackMessage);
+    }
+  }
+
+  return new APIError(statusCode, fallbackMessage);
+}
+
 /**
  * 通用 fetch 封装
  */
@@ -95,8 +147,9 @@ async function fetchAPI<T>(
   });
   
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new APIError(response.status, errorData.detail || `HTTP ${response.status}`);
+    const fallbackMessage = response.statusText || `HTTP ${response.status}`;
+    const errorData = await response.json().catch(() => null);
+    throw parseAPIError(response.status, fallbackMessage, errorData);
   }
   
   return response.json();

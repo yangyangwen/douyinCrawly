@@ -2,9 +2,7 @@
 """
 @File    :   cli.py
 @Time    :   2024年07月16日 12:05:55 星期二
-@Author  :   erma0
 @Version :   1.0
-@Link    :   https://github.com/erma0
 @Desc    :   命令行接口
 """
 
@@ -29,7 +27,6 @@ banner = rf"""
  |____/ \___/ \__,_|\__, |_|_| |_|  \____|_|  \__,_| \_/\_/ |_|\___|_|   
                     |___/                                                
                               {version}
-                Github: https://github.com/erma0/douyin
 """
 print(banner)
 

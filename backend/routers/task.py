@@ -10,10 +10,11 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from loguru import logger
 from pydantic import BaseModel
 
+from ..api_errors import APIErrorCode, raise_api_error
 from ..constants import DOWNLOAD_DIR
 from ..lib.cookies import CookieManager
 from ..settings import settings
@@ -76,13 +77,28 @@ def start_task(request: StartTaskRequest) -> Dict[str, Any]:
 
     # 输入验证
     if not request.type:
-        raise HTTPException(status_code=400, detail="任务类型不能为空")
+        raise_api_error(
+            status_code=400,
+            code=APIErrorCode.INVALID_REQUEST,
+            message="任务类型不能为空",
+            details={"field": "type"},
+        )
 
     if not isinstance(request.target, str):
-        raise HTTPException(status_code=400, detail="目标必须是字符串")
+        raise_api_error(
+            status_code=400,
+            code=APIErrorCode.INVALID_REQUEST,
+            message="目标必须是字符串",
+            details={"field": "target"},
+        )
 
     if request.limit < 0:
-        raise HTTPException(status_code=400, detail="数量限制不能为负数")
+        raise_api_error(
+            status_code=400,
+            code=APIErrorCode.INVALID_REQUEST,
+            message="数量限制不能为负数",
+            details={"field": "limit"},
+        )
 
     # 生成唯一的任务ID
     task_id = f"task_{uuid.uuid4().hex[:8]}"
@@ -157,7 +173,12 @@ def get_task_results(task_id: str) -> List[Dict[str, Any]]:
     """
 
     if task_id not in state.task_results:
-        raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
+        raise_api_error(
+            status_code=404,
+            code=APIErrorCode.TASK_NOT_FOUND,
+            message=f"任务不存在: {task_id}",
+            details={"task_id": task_id},
+        )
 
     return state.task_results[task_id]
 

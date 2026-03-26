@@ -1,10 +1,6 @@
-![douyin](https://socialify.git.ci/erma0/douyin/image?description=1&font=Source%20Code%20Pro&forks=1&issues=1&language=1&owner=1&pattern=Circuit%20Board&stargazers=1&theme=Auto)
-
 # ✨DouyinCrawler
 
 **[English](./README_EN.md) | Tiếng Việt | [简体中文](./README.md)**
-
-> ❤️[Mã nguồn mở không dễ dàng, hoan nghênh tặng sao⭐](#star-history)
 
 ## 📢Tuyên bố từ chối trách nhiệm
 
@@ -17,10 +13,6 @@
 > Việc sử dụng nội dung của kho lưu trữ này có nghĩa là bạn đồng ý với tất cả các điều khoản và điều kiện của tuyên bố từ chối trách nhiệm này. Nếu bạn không chấp nhận tuyên bố từ chối trách nhiệm trên, vui lòng ngừng sử dụng dự án này ngay lập tức.
 
 ---
-
-## 🏠Địa chỉ dự án
-
-> [https://github.com/erma0/douyin](https://github.com/erma0/douyin)
 
 ## 🍬Tính năng
 
@@ -55,7 +47,7 @@
 
 ### Người dùng Windows
 
-Tải xuống từ [Releases](https://github.com/erma0/douyin/releases), giải nén và chạy `DouyinCrawler.exe`
+Tải gói phát hành, giải nén và chạy `DouyinCrawler.exe`
 
 ### Dịch vụ Web (Docker / Tất cả nền tảng)
 
@@ -104,6 +96,3 @@ scripts/
 - **Tải xuống**: Aria2
 - **Đóng gói**: PyInstaller / Nuitka
 
-## Lịch sử Star
-
-[![Star History Chart](https://api.star-history.com/svg?repos=erma0/douyin&type=Date)](https://star-history.com/#erma0/douyin&Date)

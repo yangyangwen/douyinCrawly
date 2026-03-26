@@ -1,10 +1,6 @@
-![douyin](https://socialify.git.ci/erma0/douyin/image?description=1&font=Source%20Code%20Pro&forks=1&issues=1&language=1&owner=1&pattern=Circuit%20Board&stargazers=1&theme=Auto)
-
 # ✨DouyinCrawler
 
 **English | [Tiếng Việt](./README_VI.md) | [简体中文](./README.md)**
-
-> ❤️[Open source is hard, welcome to star⭐](#star-history)
 
 ## 📢Disclaimer
 
@@ -17,10 +13,6 @@
 > Using the content of this repository means that you agree to all the terms and conditions of this disclaimer. If you do not accept the above disclaimer, please stop using this project immediately.
 
 ---
-
-## 🏠Project Address
-
-> [https://github.com/erma0/douyin](https://github.com/erma0/douyin)
 
 ## 🍬Features
 
@@ -55,7 +47,7 @@
 
 ### Windows Users
 
-Download from [Releases](https://github.com/erma0/douyin/releases), extract and run `DouyinCrawler.exe`
+Download the release package, extract it, and run `DouyinCrawler.exe`
 
 ### Web Service (Docker / All Platforms)
 
@@ -104,6 +96,3 @@ scripts/
 - **Download**: Aria2
 - **Packaging**: PyInstaller / Nuitka
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=erma0/douyin&type=Date)](https://star-history.com/#erma0/douyin&Date)

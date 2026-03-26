@@ -111,9 +111,9 @@ Re-acquire Cookie, ensure it contains required fields like `sessionid`.
 3. Confirm not blocked by firewall or security software
 4. Confirm webview2 is installed (Windows GUI users)
 
-### Contact Support
+### Problem Reporting
 
-When submitting an [Issue](https://github.com/erma0/douyin/issues), please include: target link, error message, system version
+When reporting a problem, please include: target link, error message, system version
 
 ---
 

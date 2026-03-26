@@ -40,6 +40,13 @@ Cookie 是获取数据的必要凭证。
 
 有效 Cookie 应包含：`sessionid`、`ttwid`、`__ac_nonce`
 
+### Cookie 维护方式
+
+- GUI 模式：可以直接在设置弹窗里粘贴 Cookie，或者点击“登录获取”自动回填。
+- Web / 服务模式：优先推荐调用 `POST /api/settings` 在线更新 `cookie` / `userAgent`，新任务无需重启。
+- Docker 部署：支持在 `.env` 中配置 `DOUYIN_COOKIE` 和 `DOUYIN_USER_AGENT`，容器启动时会覆盖 `config/settings.json`。
+- 注意：如果你是手动修改 `config/settings.json` 文件，当前进程不会自动热加载，这时才需要重启服务。
+
 ---
 
 ## 🎯 功能说明
@@ -111,9 +118,9 @@ Cookie 是获取数据的必要凭证。
 3. 确认未被防火墙或安全软件拦截
 4. 确认已安装 webview2（windows gui 用户）
 
-### 联系支持
+### 问题反馈
 
-提交 [Issue](https://github.com/erma0/douyin/issues) 时请包含：目标链接、错误信息、系统版本
+反馈问题时请包含：目标链接、错误信息、系统版本
 
 ---
 
@@ -127,11 +134,28 @@ python -m backend.server --port 9000  # 指定端口
 python -m backend.server --dev        # 开发模式
 ```
 
-环境变量：`DOUYIN_HOST`、`DOUYIN_PORT`、`DOUYIN_DEV`、`DOUYIN_LOG_LEVEL`
+环境变量：
+
+- `DOUYIN_HOST`、`DOUYIN_PORT`、`DOUYIN_DEV`、`DOUYIN_LOG_LEVEL`
+- `DOUYIN_COOKIE`、`DOUYIN_USER_AGENT`
+- `DOUYIN_DOWNLOAD_PATH`
+- `DOUYIN_MAX_RETRIES`、`DOUYIN_MAX_CONCURRENCY`
+- `DOUYIN_ENABLE_INCREMENTAL_FETCH`
+- `DOUYIN_ARIA2_HOST`、`DOUYIN_ARIA2_PORT`、`DOUYIN_ARIA2_SECRET`
 
 ### HTTP API
 
 ```bash
+# 在线更新 Cookie / User-Agent（无需重启）
+curl -X POST http://localhost:8000/api/settings \
+  -H "Content-Type: application/json" \
+  -d '{"cookie":"sessionid=xxx; ttwid=xxx","userAgent":"Mozilla/5.0 ..."}'
+
+# 同步关键词搜索
+curl -X POST http://localhost:8000/api/search \
+  -H "Content-Type: application/json" \
+  -d '{"keyword":"美食","limit":18,"filters":{"sort_type":"2"}}'
+
 # 启动采集任务
 curl -X POST http://localhost:8000/api/task/start \
   -H "Content-Type: application/json" \
@@ -143,11 +167,13 @@ curl http://localhost:8000/api/task/results/task_xxx
 
 主要端点：
 
+- `POST /api/search` - 同步关键词搜索
 - `POST /api/task/start` - 启动任务
 - `GET /api/task/status` - 任务状态
 - `GET /api/task/results/{task_id}` - 采集结果
 - `GET /api/settings` - 获取设置
 - `POST /api/settings` - 保存设置
+- `GET /api/health` - 服务健康检查
 - `GET /api/events` - SSE 事件流
 
 ### 命令行模式

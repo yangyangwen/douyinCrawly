@@ -7,10 +7,11 @@
 
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from ..api_errors import APIErrorCode, raise_api_error
 from ..constants import ARIA2_DEFAULTS, DEFAULT_SETTINGS, DOWNLOAD_DEFAULTS
 from ..settings import settings
 
@@ -96,10 +97,18 @@ def save_settings(request: SettingsUpdate) -> Dict[str, str]:
         return {"status": "success", "message": "设置已保存"}
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise_api_error(
+            status_code=400,
+            code=APIErrorCode.CONFIG_INVALID,
+            message=str(e),
+        )
     except Exception as e:
         logger.error(f"保存设置失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise_api_error(
+            status_code=500,
+            code=APIErrorCode.INTERNAL_ERROR,
+            message="保存设置失败",
+        )
 
 
 @router.get("/first-run", response_model=FirstRunResponse)

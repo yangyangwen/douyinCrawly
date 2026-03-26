@@ -111,9 +111,9 @@ Lấy lại Cookie, đảm bảo chứa các trường cần thiết như `sessi
 3. Xác nhận không bị chặn bởi tường lửa hoặc phần mềm bảo mật
 4. Xác nhận đã cài đặt webview2 (người dùng Windows GUI)
 
-### Liên hệ hỗ trợ
+### Phản hồi sự cố
 
-Khi gửi [Issue](https://github.com/erma0/douyin/issues), vui lòng bao gồm: liên kết mục tiêu, thông báo lỗi, phiên bản hệ thống
+Khi phản hồi sự cố, vui lòng bao gồm: liên kết mục tiêu, thông báo lỗi, phiên bản hệ thống
 
 ---
 

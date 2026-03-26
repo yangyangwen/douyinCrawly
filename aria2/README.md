@@ -8,9 +8,8 @@
 
 ### Windows用户
 
-1. 访问 [Aria2 Releases](https://github.com/aria2/aria2/releases)
-2. 下载最新版本的 `aria2-*-win-64bit-build1.zip`
-3. 解压后将 `aria2c.exe` 复制到此目录
+1. 下载最新版本的 `aria2-*-win-64bit-build1.zip`
+2. 解压后将 `aria2c.exe` 复制到此目录
 
 ## 🔧 自动下载脚本
 
@@ -24,8 +23,7 @@
 ## ⚠️ 注意事项
 
 1. **版权说明**
-   - Aria2是开源软件，遵循GPL-2.0许可证
-   - 项目地址：https://github.com/aria2/aria2
+  - Aria2是开源软件，遵循GPL-2.0许可证
 
 2. **跨平台支持**
    - Windows: aria2c.exe
