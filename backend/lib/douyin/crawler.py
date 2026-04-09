@@ -178,7 +178,12 @@ class Douyin:
                 # 调用API获取数据
                 items_list, max_cursor, logid, self.has_more = (
                     self.client.fetch_awemes_list(
-                        self.type, self.id, max_cursor, logid, self.filters
+                        self.type,
+                        self.id,
+                        max_cursor,
+                        logid,
+                        self.filters,
+                        self.limit,
                     )
                 )
 

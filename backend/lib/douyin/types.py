@@ -20,6 +20,7 @@ class APIConfig:
     """API请求配置常量"""
 
     DEFAULT_COUNT = 18  # 默认每页数量
+    SEARCH_MAX_COUNT = 20  # 关键词搜索单次请求最大数量
     USER_SEARCH_COUNT = 10  # 用户搜索每页数量
     FOLLOW_COUNT = 20  # 关注/粉丝每页数量
 

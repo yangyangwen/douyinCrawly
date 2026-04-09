@@ -6,6 +6,7 @@
 
 - 默认服务地址：`http://localhost:8000`
 - 大多数采集能力都依赖有效的抖音 `cookie`
+- 如果配置了 `DOUYIN_API_AUTH_TOKEN`，所有 `/api` 请求都需要带 `Authorization: Bearer <token>`
 - 推荐先调用 `POST /api/settings` 写入 `cookie` 和 `userAgent`
 - `POST /api/settings` 是热更新，新任务直接生效，不需要重启进程
 - 如果你手动改 `config/settings.json`，运行中的服务不会自动热加载
@@ -99,7 +100,42 @@ curl -X POST http://localhost:8000/api/settings \
 curl http://localhost:8000/api/settings/first-run
 ```
 
-## 3. 同步搜索接口
+## 3. 同步接口
+
+### `POST /api/aweme/detail`
+
+适合“给外部系统直接返回单条作品详情”的场景，不需要先创建任务再轮询。
+
+```bash
+curl -X POST http://localhost:8000/api/aweme/detail \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target": "https://www.douyin.com/video/7623004560194602874",
+    "include_raw": false
+  }'
+```
+
+请求字段：
+
+- `target`: 作品 URL 或纯 aweme_id
+- `include_raw`: 是否附带上游原始详情数据
+
+响应重点字段：
+
+- `aweme_id`: 作品 ID
+- `resolved_url`: 规范化后的作品链接
+- `content_type`: `video` / `image`
+- `metrics.liked_count`: 点赞数
+- `metrics.comment_count`: 评论数
+- `metrics.collect_count`: 收藏数
+- `metrics.share_count`: 分享数
+- `item`: 当前解析后的完整详情对象
+
+常见错误：
+
+- `COOKIE_INVALID`: 当前运行配置里没有有效 Cookie
+- `INVALID_REQUEST`: `target` 缺失或格式明显错误
+- `RESOURCE_NOT_FOUND`: 作品不存在，或当前 Cookie 无法查看该作品
 
 ### `POST /api/search`
 

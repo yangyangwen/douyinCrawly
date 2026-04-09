@@ -1,30 +1,18 @@
 /**
- * SSE 客户端 - 接收后端实时事件
- * 
- * 事件类型：
- * - task_result: 采集结果
- * - task_status: 任务状态变化
- * - task_error: 任务错误
- * - log: 日志消息
+ * SSE client implemented with fetch streaming so custom headers can be sent.
  */
 
 import { DouyinWork } from '../types';
+import { buildRequestHeaders } from './api';
 
-// ============================================================================
-// 类型定义
-// ============================================================================
-
-/** SSE 事件类型 */
 export type SSEEventType = 'task_result' | 'task_status' | 'task_error' | 'log';
 
-/** 采集结果事件数据 */
 export interface TaskResultEvent {
   task_id: string;
   data: DouyinWork[];
   total: number;
 }
 
-/** 任务状态事件数据 */
 export interface TaskStatusEvent {
   task_id: string;
   status: string;
@@ -35,13 +23,11 @@ export interface TaskStatusEvent {
   is_incremental?: boolean;
 }
 
-/** 任务错误事件数据 */
 export interface TaskErrorEvent {
   task_id: string;
   error: string;
 }
 
-/** 日志事件数据 */
 export interface LogEvent {
   id: string;
   timestamp: string;
@@ -49,22 +35,22 @@ export interface LogEvent {
   message: string;
 }
 
-/** 事件处理器类型 */
 type EventHandler<T> = (data: T) => void;
 
-// ============================================================================
-// SSE 客户端类
-// ============================================================================
+const CONNECTING = 0;
+const OPEN = 1;
+const CLOSED = 2;
 
 class SSEClient {
-  private eventSource: EventSource | null = null;
-  private url: string = '';
+  private abortController: AbortController | null = null;
+  private url = '';
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 2000;
-  
-  // 事件处理器
+  private readonly maxReconnectAttempts = 5;
+  private readonly reconnectDelay = 2000;
+  private connectionState: typeof CONNECTING | typeof OPEN | typeof CLOSED = CLOSED;
+  private manuallyClosed = false;
+
   private handlers: {
     task_result: Set<EventHandler<TaskResultEvent>>;
     task_status: Set<EventHandler<TaskStatusEvent>>;
@@ -76,171 +62,238 @@ class SSEClient {
     task_error: new Set(),
     log: new Set(),
   };
-  
-  /**
-   * 连接到 SSE 端点
-   */
+
   connect(url: string): void {
-    // 检查是否已连接或正在连接中
-    if (this.eventSource) {
-      const state = this.eventSource.readyState;
-      if (state === EventSource.OPEN || state === EventSource.CONNECTING) {
-        console.warn('[SSE] 已连接或正在连接中，忽略重复连接');
-        return;
-      }
+    if (this.connectionState === OPEN || this.connectionState === CONNECTING) {
+      console.warn('[SSE] already connected or connecting');
+      return;
     }
-    
+
     this.url = url;
-    console.log('[SSE] 正在连接...', url);
-    
-    this.eventSource = new EventSource(url);
-    
-    this.eventSource.onopen = () => {
-      console.log('[SSE] ✓ 连接成功');
+    this.manuallyClosed = false;
+    console.log('[SSE] connecting...', url);
+    void this.openConnection();
+  }
+
+  private async openConnection(): Promise<void> {
+    if (!this.url) {
+      return;
+    }
+
+    this.connectionState = CONNECTING;
+    const abortController = new AbortController();
+    this.abortController = abortController;
+
+    try {
+      const response = await fetch(this.url, {
+        method: 'GET',
+        headers: buildRequestHeaders(
+          {
+            Accept: 'text/event-stream',
+            'Cache-Control': 'no-cache',
+          },
+          { includeJsonContentType: false },
+        ),
+        cache: 'no-store',
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`SSE HTTP ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('SSE response body is empty');
+      }
+
+      console.log('[SSE] connected');
+      this.connectionState = OPEN;
       this.reconnectAttempts = 0;
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = null;
       }
-    };
-    
-    // 监听各类事件
-    this.eventSource.addEventListener('task_result', (event) => {
-      this.handleEvent('task_result', event);
-    });
-    
-    this.eventSource.addEventListener('task_status', (event) => {
-      this.handleEvent('task_status', event);
-    });
-    
-    this.eventSource.addEventListener('task_error', (event) => {
-      this.handleEvent('task_error', event);
-    });
-    
-    this.eventSource.addEventListener('log', (event) => {
-      this.handleEvent('log', event);
-    });
-    
-    this.eventSource.onerror = (error) => {
-      console.error('[SSE] 连接错误:', error);
-      
-      if (this.eventSource?.readyState === EventSource.CLOSED) {
-        console.log('[SSE] 连接已关闭');
-        this.handleReconnect();
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          buffer += decoder.decode();
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        buffer = this.processBuffer(buffer);
       }
-    };
+
+      if (buffer.trim()) {
+        this.processMessage(buffer);
+      }
+
+      if (!this.manuallyClosed && !abortController.signal.aborted) {
+        console.warn('[SSE] connection closed by server');
+        this.connectionState = CLOSED;
+        this.scheduleReconnect();
+      }
+    } catch (error) {
+      if (abortController.signal.aborted || this.manuallyClosed) {
+        return;
+      }
+
+      this.connectionState = CLOSED;
+      console.error('[SSE] connection error:', error);
+      this.scheduleReconnect();
+    } finally {
+      if (this.abortController === abortController) {
+        this.abortController = null;
+      }
+
+      if (this.connectionState === CONNECTING) {
+        this.connectionState = CLOSED;
+      }
+    }
   }
-  
-  /**
-   * 处理事件
-   */
+
+  private processBuffer(buffer: string): string {
+    const chunks = buffer.split(/\r?\n\r?\n/);
+    const remainder = chunks.pop() ?? '';
+
+    for (const chunk of chunks) {
+      this.processMessage(chunk);
+    }
+
+    return remainder;
+  }
+
+  private processMessage(message: string): void {
+    if (!message.trim()) {
+      return;
+    }
+
+    let eventType: SSEEventType | null = null;
+    const dataLines: string[] = [];
+
+    for (const rawLine of message.split(/\r?\n/)) {
+      if (!rawLine || rawLine.startsWith(':')) {
+        continue;
+      }
+
+      const separatorIndex = rawLine.indexOf(':');
+      const field = separatorIndex === -1 ? rawLine : rawLine.slice(0, separatorIndex);
+      let value = separatorIndex === -1 ? '' : rawLine.slice(separatorIndex + 1);
+
+      if (value.startsWith(' ')) {
+        value = value.slice(1);
+      }
+
+      if (field === 'event' && this.isKnownEventType(value)) {
+        eventType = value;
+      }
+
+      if (field === 'data') {
+        dataLines.push(value);
+      }
+    }
+
+    if (!eventType || dataLines.length === 0) {
+      return;
+    }
+
+    this.handleEvent(eventType, { data: dataLines.join('\n') } as MessageEvent);
+  }
+
+  private isKnownEventType(value: string): value is SSEEventType {
+    return value === 'task_result' || value === 'task_status' || value === 'task_error' || value === 'log';
+  }
+
   private handleEvent<T extends SSEEventType>(
     eventType: T,
-    event: MessageEvent
+    event: MessageEvent,
   ): void {
     try {
       const data = JSON.parse(event.data);
       const handlers = this.handlers[eventType] as Set<EventHandler<unknown>>;
-      
+
       handlers.forEach(handler => {
         try {
           handler(data);
-        } catch (e) {
-          console.error(`[SSE] 处理 ${eventType} 事件失败:`, e);
+        } catch (error) {
+          console.error(`[SSE] failed to handle ${eventType}:`, error);
         }
       });
-    } catch (e) {
-      console.error(`[SSE] 解析 ${eventType} 事件数据失败:`, e);
+    } catch (error) {
+      console.error(`[SSE] failed to parse ${eventType}:`, error);
     }
   }
-  
-  /**
-   * 处理重连
-   */
-  private handleReconnect(): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[SSE] 达到最大重连次数，放弃重连');
+
+  private scheduleReconnect(): void {
+    if (this.manuallyClosed) {
       return;
     }
-    
-    this.reconnectAttempts++;
-    console.log(`[SSE] ${this.reconnectDelay / 1000}秒后尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-    
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error('[SSE] max reconnect attempts reached');
+      return;
+    }
+
+    this.reconnectAttempts += 1;
+    console.log(
+      `[SSE] reconnecting in ${this.reconnectDelay / 1000}s (${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
+    );
+
     this.reconnectTimer = setTimeout(() => {
-      if (this.eventSource?.readyState === EventSource.CLOSED) {
-        console.log('[SSE] 重新连接...');
-        this.connect(this.url);
+      if (this.connectionState === CLOSED && !this.manuallyClosed) {
+        console.log('[SSE] reconnecting...');
+        void this.openConnection();
       }
     }, this.reconnectDelay);
   }
-  
-  /**
-   * 断开连接
-   */
+
   disconnect(): void {
-    if (this.eventSource) {
-      console.log('[SSE] 断开连接');
-      this.eventSource.close();
-      this.eventSource = null;
-    }
+    this.manuallyClosed = true;
+    this.connectionState = CLOSED;
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+
+    console.log('[SSE] disconnected');
     this.reconnectAttempts = 0;
   }
-  
-  /**
-   * 检查是否已连接
-   */
+
   isConnected(): boolean {
-    return this.eventSource?.readyState === EventSource.OPEN;
+    return this.connectionState === OPEN;
   }
-  
-  // ========================================================================
-  // 事件订阅方法
-  // ========================================================================
-  
-  /**
-   * 订阅采集结果事件
-   * @returns 取消订阅函数
-   */
+
   onTaskResult(handler: EventHandler<TaskResultEvent>): () => void {
     this.handlers.task_result.add(handler);
     return () => this.handlers.task_result.delete(handler);
   }
-  
-  /**
-   * 订阅任务状态事件
-   * @returns 取消订阅函数
-   */
+
   onTaskStatus(handler: EventHandler<TaskStatusEvent>): () => void {
     this.handlers.task_status.add(handler);
     return () => this.handlers.task_status.delete(handler);
   }
-  
-  /**
-   * 订阅任务错误事件
-   * @returns 取消订阅函数
-   */
+
   onTaskError(handler: EventHandler<TaskErrorEvent>): () => void {
     this.handlers.task_error.add(handler);
     return () => this.handlers.task_error.delete(handler);
   }
-  
-  /**
-   * 订阅日志事件
-   * @returns 取消订阅函数
-   */
+
   onLog(handler: EventHandler<LogEvent>): () => void {
     this.handlers.log.add(handler);
     return () => this.handlers.log.delete(handler);
   }
-  
-  /**
-   * 通用事件订阅
-   * @returns 取消订阅函数
-   */
+
   on<T extends SSEEventType>(
     eventType: T,
     handler: EventHandler<
@@ -248,16 +301,13 @@ class SSEClient {
       T extends 'task_status' ? TaskStatusEvent :
       T extends 'task_error' ? TaskErrorEvent :
       LogEvent
-    >
+    >,
   ): () => void {
     const handlers = this.handlers[eventType] as Set<EventHandler<unknown>>;
     handlers.add(handler);
     return () => handlers.delete(handler);
   }
-  
-  /**
-   * 移除所有事件处理器
-   */
+
   removeAllHandlers(): void {
     this.handlers.task_result.clear();
     this.handlers.task_status.clear();
@@ -266,7 +316,6 @@ class SSEClient {
   }
 }
 
-// 导出单例
 export const sseClient = new SSEClient();
 
 export default sseClient;

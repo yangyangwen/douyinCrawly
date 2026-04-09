@@ -26,6 +26,7 @@ class DouyinClient:
             request: Request实例
         """
         self.request = request
+        self.last_response_meta = {}
 
     def fetch_aweme_detail(self, aweme_id: str) -> dict:
         """
@@ -49,7 +50,13 @@ class DouyinClient:
         return aweme_detail
 
     def fetch_awemes_list(
-        self, type: str, target_id: str, max_cursor: int, logid: str, filters: dict
+        self,
+        type: str,
+        target_id: str,
+        max_cursor: int,
+        logid: str,
+        filters: dict,
+        limit: int = 0,
     ) -> Tuple[List[dict], int, str, bool]:
         """
         获取作品/用户列表
@@ -65,10 +72,19 @@ class DouyinClient:
             tuple: (作品列表, 新游标, 日志ID, 是否还有更多)
         """
         uri, params, data = self._build_awemes_params(
-            type, target_id, max_cursor, logid, filters
+            type, target_id, max_cursor, logid, filters, limit
         )
 
         resp = self.request.getJSON(uri, params, data)
+        self.last_response_meta = {
+            "status_code": resp.get("status_code"),
+            "cursor": resp.get("cursor"),
+            "max_cursor": resp.get("max_cursor"),
+            "min_time": resp.get("min_time"),
+            "has_more": resp.get("has_more", 0),
+            "search_nil_info": resp.get("search_nil_info"),
+            "extra": resp.get("extra"),
+        }
 
         # 提取游标
         new_cursor = max_cursor
@@ -100,7 +116,13 @@ class DouyinClient:
         }
 
     def _build_awemes_params(
-        self, type: str, target_id: str, max_cursor: int, logid: str, filters: dict
+        self,
+        type: str,
+        target_id: str,
+        max_cursor: int,
+        logid: str,
+        filters: dict,
+        limit: int = 0,
     ) -> Tuple[str, dict, dict]:
         """
         构建作品列表请求参数
@@ -162,13 +184,16 @@ class DouyinClient:
             uri = APIEndpoint.MIX_AWEME
             params = {**self._build_common_params(max_cursor), "mix_id": target_id}
         elif type == "search":
+            search_count = APIConfig.DEFAULT_COUNT
+            if limit:
+                search_count = max(1, min(int(limit), APIConfig.SEARCH_MAX_COUNT))
             # 构建 filter_selected JSON
             filter_selected = json.dumps(
                 {
                     "sort_type": filters.get("sort_type", "0"),
                     "publish_time": filters.get("publish_time", "0"),
                     "content_type": filters.get("content_type", "1"),
-                    "filter_duration": filters.get("filter_duration", "0"),
+                    "filter_duration": filters.get("filter_duration", ""),
                     "search_range": filters.get("search_range", "0"),
                 },
                 ensure_ascii=False,
@@ -185,7 +210,7 @@ class DouyinClient:
                 "from_group_id": "",
                 "disable_rs": 0,
                 "offset": max_cursor,
-                "count": APIConfig.DEFAULT_COUNT,
+                "count": search_count,
                 "need_filter_settings": 0,
                 "list_type": "multi",
                 "search_id": logid,

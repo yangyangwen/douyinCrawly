@@ -23,7 +23,7 @@ class SearchRequest(BaseModel):
     """同步关键词搜索请求"""
 
     keyword: str = Field(..., min_length=1, description="搜索关键词")
-    limit: int = Field(18, ge=1, le=200, description="返回条数上限")
+    limit: int = Field(20, ge=1, le=200, description="返回条数上限，抖音搜索单次最大 20 条，超出将被截断")
     filters: Optional[Dict[str, str]] = Field(
         default=None,
         description="可选筛选条件，如 sort_type/publish_time/filter_duration",
@@ -45,6 +45,12 @@ class SearchResponse(BaseModel):
     raw_count: int = 0
     raw_fields: List[str] = Field(default_factory=list)
     raw_items: Optional[List[Dict[str, Any]]] = None
+    has_more: bool = False
+    cursor: Optional[int] = None
+    verify_required: bool = False
+    search_nil_info: Optional[Dict[str, Any]] = None
+    extra: Optional[Dict[str, Any]] = None
+    warnings: List[str] = Field(default_factory=list)
 
 
 @router.post("", response_model=SearchResponse)
@@ -93,6 +99,17 @@ def search_keyword(request: SearchRequest) -> Dict[str, Any]:
     raw_fields = (
         sorted({key for item in raw_items for key in item.keys()}) if raw_items else []
     )
+    meta = getattr(douyin.client, "last_response_meta", {}) or {}
+    search_nil_info = meta.get("search_nil_info")
+    verify_required = (
+        isinstance(search_nil_info, dict)
+        and search_nil_info.get("search_nil_type") == "verify_check"
+    )
+    warnings: List[str] = []
+    if verify_required:
+        warnings.append(
+            "Douyin upstream search returned verify_check; refresh cookie or pass verification in browser."
+        )
 
     return {
         "keyword": keyword,
@@ -103,4 +120,10 @@ def search_keyword(request: SearchRequest) -> Dict[str, Any]:
         "raw_count": len(raw_items or []),
         "raw_fields": raw_fields,
         "raw_items": raw_items,
+        "has_more": bool(meta.get("has_more", 0)),
+        "cursor": meta.get("cursor") or meta.get("max_cursor") or meta.get("min_time"),
+        "verify_required": verify_required,
+        "search_nil_info": search_nil_info,
+        "extra": meta.get("extra"),
+        "warnings": warnings,
     }

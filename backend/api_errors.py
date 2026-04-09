@@ -1,9 +1,5 @@
 # -*- encoding: utf-8 -*-
-"""
-HTTP API 错误模型与异常处理。
-
-为 FastAPI 路由提供统一的错误结构，避免不同接口返回风格不一致。
-"""
+"""Shared HTTP API error models and handlers."""
 
 from enum import Enum
 from typing import Any, Dict, List
@@ -18,8 +14,9 @@ ErrorDetails = Dict[str, Any] | List[Dict[str, Any]]
 
 
 class APIErrorCode(str, Enum):
-    """统一错误码。"""
+    """Stable API error codes."""
 
+    UNAUTHORIZED = "UNAUTHORIZED"
     INVALID_REQUEST = "INVALID_REQUEST"
     VALIDATION_ERROR = "VALIDATION_ERROR"
     CONFIG_INVALID = "CONFIG_INVALID"
@@ -31,7 +28,7 @@ class APIErrorCode(str, Enum):
 
 
 class APIErrorPayload(BaseModel):
-    """错误详情。"""
+    """Structured error payload."""
 
     code: str
     message: str
@@ -39,13 +36,13 @@ class APIErrorPayload(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-    """统一错误响应。"""
+    """Top-level error response."""
 
     error: APIErrorPayload
 
 
 class APIError(Exception):
-    """应用级 API 异常。"""
+    """Application-level API exception."""
 
     def __init__(
         self,
@@ -67,15 +64,16 @@ def raise_api_error(
     message: str,
     details: ErrorDetails | None = None,
 ) -> None:
-    """抛出统一结构的 APIError。"""
+    """Raise an APIError with the shared response shape."""
     raise APIError(status_code=status_code, code=code, message=message, details=details)
 
 
-def _build_error_content(
+def build_error_content(
     code: APIErrorCode | str,
     message: str,
     details: ErrorDetails | None = None,
 ) -> Dict[str, Any]:
+    """Build the shared JSON error payload."""
     content: Dict[str, Any] = {
         "error": {
             "code": _serialize_code(code),
@@ -94,6 +92,8 @@ def _serialize_code(code: APIErrorCode | str) -> str:
 
 
 def _default_error_code(status_code: int) -> APIErrorCode:
+    if status_code == 401:
+        return APIErrorCode.UNAUTHORIZED
     if status_code == 422:
         return APIErrorCode.VALIDATION_ERROR
     if status_code == 404:
@@ -151,10 +151,10 @@ async def api_error_exception_handler(
     _request: Request,
     exc: APIError,
 ) -> JSONResponse:
-    """APIError 统一输出。"""
+    """Render APIError using the shared error structure."""
     return JSONResponse(
         status_code=exc.status_code,
-        content=_build_error_content(
+        content=build_error_content(
             code=exc.code,
             message=exc.message,
             details=exc.details,
@@ -166,7 +166,7 @@ async def http_exception_handler(
     request: Request,
     exc: HTTPException,
 ) -> JSONResponse:
-    """兜底处理仍然抛出 HTTPException 的路由。"""
+    """Normalize plain HTTPException responses."""
     return await api_error_exception_handler(request, _normalize_http_exception(exc))
 
 
@@ -174,10 +174,10 @@ async def validation_exception_handler(
     _request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
-    """请求参数校验错误。"""
+    """Normalize FastAPI validation errors."""
     return JSONResponse(
         status_code=422,
-        content=_build_error_content(
+        content=build_error_content(
             code=APIErrorCode.VALIDATION_ERROR,
             message="请求参数校验失败",
             details=_format_validation_errors(exc),
@@ -189,11 +189,11 @@ async def unhandled_exception_handler(
     request: Request,
     exc: Exception,
 ) -> JSONResponse:
-    """未处理异常统一转成稳定错误结构。"""
-    logger.exception(f"未处理异常: {request.method} {request.url.path} - {exc}")
+    """Normalize unhandled exceptions."""
+    logger.exception(f"Unhandled exception: {request.method} {request.url.path} - {exc}")
     return JSONResponse(
         status_code=500,
-        content=_build_error_content(
+        content=build_error_content(
             code=APIErrorCode.INTERNAL_ERROR,
             message="服务器内部错误",
         ),
@@ -201,7 +201,7 @@ async def unhandled_exception_handler(
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    """注册统一异常处理。"""
+    """Register all shared exception handlers."""
     app.add_exception_handler(APIError, api_error_exception_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
