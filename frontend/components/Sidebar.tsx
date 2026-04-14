@@ -2,7 +2,6 @@
 import {
   Download,
   Film,
-  Github,
   Hash,
   Heart,
   Layers,
@@ -14,7 +13,6 @@ import {
   User
 } from 'lucide-react';
 import React from 'react';
-import { bridge } from '../services/bridge';
 import { TaskType } from '../types';
 import { formatSpeedSimple } from '../utils/formatters';
 
@@ -136,14 +134,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <Settings size={18} className="text-slate-500 group-hover:text-slate-300" />
           <span className="font-medium">系统配置</span>
-        </button>
-
-        <button
-          onClick={() => bridge.openExternal('https://github.com/erma0/douyin')}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200 group"
-        >
-          <Github size={18} className="text-slate-500 group-hover:text-slate-300" />
-          <span className="font-medium">GitHub 仓库</span>
         </button>
       </div>
     </div>

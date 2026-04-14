@@ -1,5 +1,5 @@
 
-import { ChevronDown, ChevronUp, ExternalLink, FolderOpen, LogIn, Save, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, FolderOpen, LogIn, Save, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { APP_DEFAULTS } from '../constants';
 import { aria2Service } from '../services/aria2Service';
@@ -302,14 +302,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     仅GUI模式
                   </button>
                 )}
-                <button
-                  onClick={() => bridge.openExternal('https://github.com/erma0/douyin/blob/main/USAGE.md#cookie%E8%8E%B7%E5%8F%96')}
-                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 transition-colors"
-                  title="查看获取 Cookie 的详细教程"
-                >
-                  手动获取?
-                  <ExternalLink size={12} />
-                </button>
               </div>
             </div>
             <textarea

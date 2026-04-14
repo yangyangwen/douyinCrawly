@@ -52,8 +52,15 @@ class AwemeDetailResponse(BaseModel):
     raw_item: Optional[Dict[str, Any]] = None
 
 
-@router.post("/detail", response_model=AwemeDetailResponse)
-def get_aweme_detail(request: AwemeDetailRequest) -> Dict[str, Any]:
+class AwemeFeedMetricsResponse(BaseModel):
+    """Feed 互动数据响应"""
+
+    success: bool = True
+    data: AwemeMetrics
+    message: str = "获取Feed互动数据成功"
+
+
+def _build_aweme_detail_payload(request: AwemeDetailRequest) -> Dict[str, Any]:
     """
     同步执行单作品详情抓取并返回结果。
 
@@ -148,4 +155,19 @@ def get_aweme_detail(request: AwemeDetailRequest) -> Dict[str, Any]:
         "item": item,
         "raw_fields": sorted(raw_item.keys()) if raw_item else [],
         "raw_item": raw_item,
+    }
+
+
+@router.post("/detail", response_model=AwemeDetailResponse)
+def get_aweme_detail(request: AwemeDetailRequest) -> Dict[str, Any]:
+    return _build_aweme_detail_payload(request)
+
+
+@router.post("/detail/feed-metrics", response_model=AwemeFeedMetricsResponse)
+def get_aweme_feed_metrics(request: AwemeDetailRequest) -> Dict[str, Any]:
+    detail = _build_aweme_detail_payload(request)
+    return {
+        "success": True,
+        "data": detail["metrics"],
+        "message": "获取Feed互动数据成功",
     }

@@ -8,7 +8,7 @@
  * 4. 完成页面 - 显示配置完成信息
  */
 
-import { Check, ChevronLeft, ChevronRight, ExternalLink, FolderOpen, LogIn, Sparkles, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, FolderOpen, LogIn, Sparkles, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { APP_DEFAULTS } from '../constants';
 import { bridge, isGUIMode } from '../services/bridge';
@@ -298,14 +298,6 @@ export const WelcomeWizard: React.FC<WelcomeWizardProps> = ({ isOpen, onClose, o
                         仅GUI模式
                       </button>
                     )}
-                    <button
-                      onClick={() => bridge.openExternal('https://github.com/erma0/douyin/blob/main/USAGE.md#cookie%E8%8E%B7%E5%8F%96')}
-                      className="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 transition-colors"
-                      title="查看获取 Cookie 的详细教程"
-                    >
-                      手动获取?
-                      <ExternalLink size={12} />
-                    </button>
                   </div>
                 </div>
                 <textarea
